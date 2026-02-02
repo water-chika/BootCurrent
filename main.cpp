@@ -1,9 +1,10 @@
-#include <windows.h>
 #include <iostream>
 #include <cstdlib>
 #include <unordered_map>
 #include <filesystem>
 #include <fstream>
+
+#include <win32_helper.hpp>
 
 #define EFI_GLOBAL_VARIABLE "{8BE4DF61-93CA-11D2-AA0D-00E098032B8C}"
 
@@ -56,6 +57,16 @@ std::unordered_map<std::string, bootnum_t> parse_config(const std::filesystem::p
     return parse_config(in);
 }
 
+std::unordered_map<std::string, bootnum_t> parse_config() {
+    auto module_path = win32_helper::get_module_file_name();
+
+    auto directory = std::filesystem::path{module_path.data()}.parent_path();
+    auto config_path = directory / "boot.cfg";
+
+    auto config = parse_config(config_path);
+    return config;
+}
+
 void boot_current() {    
     ObtainPrivileges(SE_SYSTEM_ENVIRONMENT_NAME);
     //ObtainPrivileges(SE_SHUTDOWN_NAME);
@@ -104,20 +115,13 @@ void boot_current() {
     std::cout << "BootNext:" << *(bootnum_t *)buffer << std::endl;
 }
 
+
+
 void boot_to(auto name) {
     ObtainPrivileges(SE_SYSTEM_ENVIRONMENT_NAME);
     //ObtainPrivileges(SE_SHUTDOWN_NAME);
 
-    auto module_path = std::vector<char>(512);
-    auto ret = GetModuleFileNameA(nullptr, module_path.data(), module_path.size());
-    if (ret <= 0 || ret >= module_path.size()) {
-        throw std::runtime_error{"GetModuleFileName failed"};
-    }
-
-    auto directory = std::filesystem::path{module_path.data()}.parent_path();
-    auto config_path = directory / "boot.cfg";
-
-    auto config = parse_config(config_path);
+    auto config = parse_config();
     auto bootnum = config[name];
     std::cout << bootnum << std::endl;
 
